@@ -270,6 +270,7 @@
         /** 模拟异步签到效果 */
         for (let i = 0; i < total; i++) {
             setTimeout(() => {
+
                 const random_index = getRandom(emptyList.length - 1);
                 const random_data = emptyList[random_index];
                 emptyList.splice(random_index, 1);// 删除可用的随机位置
