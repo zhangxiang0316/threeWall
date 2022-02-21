@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>照片</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link type="text/css" rel="stylesheet" href="./css/sahua.css">
+    <link type="text/css" rel="stylesheet" href="./css/main.css">
+</head>
+
+<body>
+    <div class="confetti-land" id="confetti-land"></div>
+    <div id="container"></div>
+    <div id="menu" style="display: none">
+        <button id="table">TABLE</button>
+        <button id="sphere">SPHERE</button>
+        <button id="helix">HELIX</button>
+        <button id="grid">GRID</button>
+    </div>
+    </div>
+
+    <script type="module">
+        // import * as THREE from './js/three.module.js'
+        import { PerspectiveCamera, Scene, Object3D, Vector3 } from './js/three.module.js'
+        import { TWEEN } from './js/tween.module.min.js';
+        import { TrackballControls } from './js/TrackballControls.js';
+        import { CSS3DRenderer, CSS3DObject } from './js/CSS3DRenderer.js';
+        import { OrbitControls } from './js/OrbitControls.js';
+        const table = [];
+        const total = 108; // 总数
+        const max = 180; // 最合适数值
+        const confetti_num = 100;// 彩纸数量（比较吃性能，不要大于100）
+        let start_index = 0;
+        if (max > total) {
+            start_index = Math.floor((max - total) / 2)
+        }
+        for (let i = start_index; i < start_index + total; i++) {
+            table.push('picture', 'name', 'detail', i % 18, Math.ceil((i + 1) / 18))
+        }
+
+        let camera, scene, renderer;
+        let controls, cameraRotate;
+
+        const objects = [];
+        const nodelist = [];
+        const targets = { table: [], sphere: [], helix: [], grid: [] };
+
+        init();
+        animate();
+
+        function init() {
+            camera = new PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.z = 3000;
+            scene = new Scene();
+            for (let i = 0; i < table.length; i += 5) {
+                const element = document.createElement('div');
+                element.className = 'element';
+                element.style.backgroundColor = 'rgba(0,127,127,' + (Math.random() * 0.5 + 0.25) + ')';
+                const symbol = document.createElement('div');
+                symbol.className = 'symbol';
+                const img = document.createElement('img');
+                symbol.appendChild(img) // 内容 可换成头像
+                element.appendChild(symbol);
+                nodelist.push({ picture: img })
+
+                const objectCSS = new CSS3DObject(element);
+                objectCSS.position.x = Math.random() * 4000 - 2000;
+                objectCSS.position.y = Math.random() * 4000 - 2000;
+                objectCSS.position.z = Math.random() * 4000 - 2000;
+                scene.add(objectCSS);
+                objects.push(objectCSS);
+                const object = new Object3D();
+                object.position.x = (table[i + 3] * 140) - 1190;
+                object.position.y = -(table[i + 4] * 180) + 1020;
+                targets.table.push(object);
+            }
+            const vector = new Vector3();
+            for (let i = 0, l = objects.length; i < l; i++) {
+                const phi = Math.acos(-1 + (2 * i) / l);
+                const theta = Math.sqrt(l * Math.PI) * phi;
+                const object = new Object3D();
+                object.position.setFromSphericalCoords(800, phi, theta);
+                vector.copy(object.position).multiplyScalar(2);
+                object.lookAt(vector);
+                targets.sphere.push(object);
+
+            }
+            for (let i = 0, l = objects.length; i < l; i++) {
+                const theta = i * 0.175 + Math.PI;
+                const y = -(i * 8) + 450;
+                const object = new Object3D();
+                object.position.setFromCylindricalCoords(900, theta, y);
+                vector.x = object.position.x * 2;
+                vector.y = object.position.y;
+                vector.z = object.position.z * 2;
+                object.lookAt(vector);
+                targets.helix.push(object);
+
+            }
+            for (let i = 0; i < objects.length; i++) {
+                const object = new Object3D();
+                object.position.x = ((i % 5) * 400) - 800;
+                object.position.y = (-(Math.floor(i / 5) % 5) * 400) + 800;
+                object.position.z = (Math.floor(i / 25)) * 1000 - 2000;
+                targets.grid.push(object);
+            }
+            renderer = new CSS3DRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('container').appendChild(renderer.domElement);
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.minDistance = 0;
+            controls.maxDistance = 6000;
+            controls.addEventListener('change', render);
+            cameraRotate = new OrbitControls(camera, renderer.domElement);
+            cameraRotate.addEventListener('change', render);
+            cameraRotate.autoRotate = true;
+            const buttonTable = document.getElementById('table');
+            buttonTable.addEventListener('click', function () {
+                transform(targets.table, 2000);
+            });
+
+            const buttonSphere = document.getElementById('sphere');
+            buttonSphere.addEventListener('click', function () {
+                transform(targets.sphere, 2000);
+            });
+
+            const buttonHelix = document.getElementById('helix');
+            buttonHelix.addEventListener('click', function () {
+                transform(targets.helix, 2000);
+            });
+
+            const buttonGrid = document.getElementById('grid');
+            buttonGrid.addEventListener('click', function () {
+                transform(targets.grid, 2000);
+            });
+            transform(targets.table, 2000);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function transform(targets, duration) {
+            TWEEN.removeAll();
+            for (let i = 0; i < objects.length; i++) {
+                const object = objects[i];
+                const target = targets[i];
+                new TWEEN.Tween(object.position).to({
+                    x: target.position.x,
+                    y: target.position.y,
+                    z: target.position.z
+                }, Math.random() * duration + duration)
+                    .easing(TWEEN.Easing.Exponential.InOut)
+                    .start();
+                new TWEEN.Tween(object.rotation)
+                    .to({
+                        x: target.rotation.x,
+                        y: target.rotation.y,
+                        z: target.rotation.z
+                    }, Math.random() * duration + duration)
+                    .easing(TWEEN.Easing.Exponential.InOut)
+                    .start();
+            }
+            new TWEEN.Tween(this)
+                .to({}, duration * 2)
+                .onUpdate(render)
+                .start();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render();
+
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            controls.update();
+            cameraRotate.update();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        function cameraZoom() {
+            var zoom = {
+                value: camera.zoom // from current zoom (no matter if it's more or less than 1)
+            };
+            var zoomEnd = {
+                value: (camera.zoom > 1.5) ? 1 : 2 // to the zoom of 1
+            };
+            var tween = new TWEEN.Tween(zoom).to(zoomEnd, 15000); // duration of tweening is 0.5 second
+            tween.onUpdate(function () {
+                camera.zoom = zoom.value;
+                camera.updateProjectionMatrix();
+                render();
+            });
+            tween.start();
+        }
+
+        cameraZoom();
+        setInterval(() => {
+            const animations = [
+                () => {
+                    transform(targets.sphere, 2000)
+                },
+                () => {
+                    transform(targets.helix, 2000)
+                },
+                () => {
+                    transform(targets.helix, 2000)
+                },
+                () => {
+                    transform(targets.grid, 2000)
+                },
+            ]
+            /** 随机来一个变形动画 */
+            animations[getRandom(3)]();
+            /** 相机缩放 */
+            cameraZoom();
+        }, 1000 * 10);
+
+        let html = '';
+        for (let i = 0; i < confetti_num; i++) {
+            html += '<div class="confetti"></div>'
+        }
+        document.getElementById('confetti-land').innerHTML = html;
+        var confettiPlayers = [];
+
+        function makeItConfetti() {
+            var confetti = document.querySelectorAll('.confetti');
+
+            if (!confetti[0].animate) {
+                return false;
+            }
+
+            for (var i = 0, len = confetti.length; i < len; ++i) {
+                var confettiarr = confetti[i];
+                confettiarr.innerHTML = '<div class="rotate"><div class="askew"></div></div>';
+                var scale = Math.random() * .8 + .2;
+                var player = confettiarr.animate([
+                    { transform: 'translate3d(' + (i / len * 100) + 'vw,0,0) scale(' + scale + ')', opacity: scale },
+                    { transform: 'translate3d(' + (i / len * 100 + 10) + 'vw,100vh,0) scale(' + scale + ')', opacity: 1 }
+                ], {
+                    duration: Math.random() * 3000 + 3000,
+                    iterations: Infinity,
+                    delay: -(Math.random() * 5000)
+                });
+
+
+                confettiPlayers.push(player);
+            }
+        }
+
+        makeItConfetti();
+
+
+        function getRandom(max, plus) {
+            return Math.floor(Math.random() * (max + 1)) + (plus || 0);
+        }
+
+        /** 可用的随机位置 */
+        const emptyList = [];
+        for (let i = 0; i < total; i++) {
+            emptyList.push(i)
+        }
+
+        /** 模拟异步签到效果 */
+        for (let i = 0; i < total; i++) {
+            setTimeout(() => {
+                const random_index = getRandom(emptyList.length - 1);
+                const random_data = emptyList[random_index];
+                emptyList.splice(random_index, 1);// 删除可用的随机位置
+                const { picture } = nodelist[random_data];
+                picture.style.transform = 'scale(1)';
+                picture.style.opacity = 1;
+                picture.style['object-fit'] = 'fill'
+                picture.setAttribute("src", `./imgs/${i % 12 + 1}.jpg`);
+                // picture.setAttribute("src", 'https://img.bige9.com/bookimg/2530.jpg');
+            }, 50 + getRandom(3 * 1000));
+
+        }
+    </script>
+</body>
+
+</html>
